@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Reservas com Pix, Ativação e Comprovante PDF</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        :root {
+            --primary: #1e40af;
+            --primary-hover: #1e3a8a;
+            --secondary: #0f766e;
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --warning: #d97706;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        header h1 {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.9rem;
+            flex-wrap: wrap;
+        }
+
+        .container {
+            max-width: 1220px;
+            width: 95%;
+            margin: 2rem auto;
+            flex: 1;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .login-wrapper {
+            max-width: 480px;
+            margin: 3rem auto;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 0.75rem;
+            background: none;
+            border: none;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+            color: var(--text-main);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.65rem 0.85rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+            background: white;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.65rem 1.25rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, opacity 0.2s;
+            gap: 0.35rem;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary);
+            color: white;
+        }
+
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+            padding: 0.4rem 0.7rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+            padding: 0.4rem 0.7rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-pix {
+            background-color: #0d9488;
+            color: white;
+            padding: 0.4rem 0.7rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-link {
+            background-color: #e0e7ff;
+            color: #1e40af;
+            padding: 0.4rem 0.7rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.4);
+            color: white;
+            padding: 0.4rem 0.85rem;
+            font-size: 0.85rem;
+        }
+
+        .btn-outline:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .spaces-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .space-card {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: #fafafa;
+        }
+
+        .space-card.salao { border-left: 4px solid var(--secondary); }
+        .space-card.quiosque { border-left: 4px solid var(--primary); }
+
+        .space-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem; }
+        .space-fee { font-size: 1rem; font-weight: 700; color: var(--secondary); margin-bottom: 0.5rem; }
+
+        .space-hours {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            background: #e2e8f0;
+            padding: 0.4rem 0.6rem;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.73rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 0.65rem;
+        }
+
+        .badge-available { background: #dcfce7; color: #166534; }
+        .badge-occupied { background: #fee2e2; color: #991b1b; }
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .badge-confirmed { background: #dbeafe; color: #1e40af; }
+        .badge-blocked { background: #f1f5f9; color: #475569; }
+        .badge-active-user { background: #dcfce7; color: #166534; }
+        .badge-pending-user { background: #fef3c7; color: #92400e; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.86rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 0.65rem;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: top;
+        }
+
+        th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .code-pill {
+            font-family: monospace;
+            font-weight: 700;
+            background: #eef2ff;
+            color: #1e3a8a;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #c7d2fe;
+            display: inline-block;
+        }
+
+        .link-preview {
+            font-family: monospace;
+            font-size: 0.75rem;
+            background: #f1f5f9;
+            padding: 0.25rem 0.45rem;
+            border-radius: 4px;
+            display: inline-block;
+            max-width: 190px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .alert {
+            padding: 0.85rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .alert-success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.65);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            z-index: 50;
+            overflow-y: auto;
+        }
+
+        .modal-card {
+            background: white;
+            border-radius: 10px;
+            max-width: 540px;
+            width: 100%;
+            padding: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
+            max-height: 92vh;
+            overflow-y: auto;
+        }
+
+        .pix-box {
+            background: #f8fafc;
+            border: 1px dashed #94a3b8;
+            border-radius: 8px;
+            padding: 0.8rem;
+            font-family: monospace;
+            font-size: 0.78rem;
+            word-break: break-all;
+            margin: 0.5rem 0 0.8rem;
+            max-height: 95px;
+            overflow-y: auto;
+        }
+
+        .proof-preview-img {
+            width: 100%;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-top: 0.6rem;
+            background: #f8fafc;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Reserva de Área Comum • Pix & Comprovante PDF</h1>
+        <div id="headerControls" class="user-info hidden">
+            <span id="loggedUserDisplay"></span>
+            <button id="logoutBtn" class="btn btn-outline" onclick="logout()">Sair</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="globalAlert" class="alert"></div>
+
+        <!-- ==================== LOGIN ==================== -->
+        <div id="loginView" class="login-wrapper card">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchLoginTab('user')">Acesso Morador</button>
+                <button class="tab-btn" onclick="switchLoginTab('admin')">Administração</button>
+            </div>
+
+            <form id="userLoginForm" onsubmit="handleUserLogin(event)">
+                <div class="form-group">
+                    <label>Unidade ou Telefone do Titular</label>
+                    <input type="text" id="userLoginInput" placeholder="Ex: Apto 101 ou (16) 99999-9999" required>
+                </div>
+                <div class="form-group">
+                    <label>Senha Individual</label>
+                    <input type="password" id="userPassInput" placeholder="Digite sua senha cadastrada" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Entrar para Reservar</button>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.75rem; text-align: center;">
+                    Primeiro acesso? Abra o <strong>link individual</strong> enviado pela administração para validar seus dados e criar sua senha.
+                </p>
+            </form>
+
+            <form id="adminLoginForm" class="hidden" onsubmit="handleAdminLogin(event)">
+                <div class="form-group">
+                    <label>Usuário Administrador</label>
+                    <input type="text" id="adminUserInput" placeholder="admin" required>
+                </div>
+                <div class="form-group">
+                    <label>Senha Administrativa</label>
+                    <input type="password" id="adminPassInput" placeholder="••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Acessar Painel Admin</button>
+            </form>
+        </div>
+
+        <!-- ==================== ATIVAÇÃO E CADASTRO DE SENHA DO MORADOR ==================== -->
+        <div id="activateUserView" class="login-wrapper card hidden">
+            <h2 style="margin-bottom: 0.35rem;">Ativação do Titular e Criação de Senha</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.1rem;">
+                Confirme os dados cadastrados pela administração e informe o <strong>código de verificação</strong> para criar sua senha de acesso.
+            </p>
+
+            <form onsubmit="handleActivateUser(event)">
+                <div class="form-group">
+                    <label>Nome Completo (Titular)</label>
+                    <input type="text" id="actName" placeholder="Ex: Maria Aparecida Souza" required>
+                </div>
+                <div class="form-group">
+                    <label>Número de Telefone</label>
+                    <input type="text" id="actPhone" placeholder="Ex: (16) 99123-4567" required>
+                </div>
+                <div class="form-group">
+                    <label>Endereço</label>
+                    <input type="text" id="actAddress" placeholder="Ex: Av. Caramuru, 2200" required>
+                </div>
+                <div class="form-group">
+                    <label>Unidade</label>
+                    <input type="text" id="actUnit" placeholder="Ex: Bloco B - Apto 42" required>
+                </div>
+                <div class="form-group">
+                    <label>Código de Verificação</label>
+                    <input type="text" id="actCode" placeholder="Ex: 482910" required>
+                </div>
+                <div class="form-group">
+                    <label>Nova Senha Individual</label>
+                    <input type="password" id="actNewPass" minlength="4" placeholder="Mínimo 4 caracteres" required>
+                </div>
+                <div class="form-group">
+                    <label>Confirmar Nova Senha</label>
+                    <input type="password" id="actConfirmPass" minlength="4" placeholder="Repita a senha" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Validar Dados e Criar Senha</button>
+            </form>
+        </div>
+
+        <!-- ==================== PAINEL ADMIN ==================== -->
+        <div id="adminView" class="hidden">
+            <div class="grid-2">
+                <!-- Cadastro de Titular pela Administração -->
+                <div class="card">
+                    <h2>Cadastrar Titular (Morador)</h2>
+                    <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.8rem;">
+                        O morador usará estes exatos dados + código de verificação no link individual para cadastrar sua senha.
+                    </p>
+                    <form onsubmit="registerTitular(event)">
+                        <div class="form-group">
+                            <label>Nome Completo do Titular</label>
+                            <input type="text" id="regName" placeholder="Ex: Carlos Eduardo De Souza" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Número de Telefone</label>
+                            <input type="text" id="regPhone" placeholder="Ex: (16) 99888-7766" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Endereço</label>
+                            <input type="text" id="regAddress" placeholder="Ex: Av. Caramuru, 2200" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Unidade</label>
+                            <input type="text" id="regUnit" placeholder="Ex: Apto 101" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Cadastrar Titular, Link e Código</button>
+                    </form>
+                </div>
+
+                <!-- Configuração Pix -->
+                <div class="card">
+                    <h2>Configuração de Cobrança Pix</h2>
+                    <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.8rem;">
+                        Taxas fixas: <strong>Quiosques R$ 30,00</strong> | <strong>Salão de Festas R$ 300,00</strong>.
+                    </p>
+                    <form onsubmit="savePixConfig(event)">
+                        <div class="form-group">
+                            <label>Chave Pix</label>
+                            <input type="text" id="pixKeyInput" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nome do Recebedor (até 25 caracteres)</label>
+                            <input type="text" id="pixNameInput" maxlength="25" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Cidade do Recebedor (até 15 caracteres)</label>
+                            <input type="text" id="pixCityInput" maxlength="15" required>
+                        </div>
+                        <button type="submit" class="btn btn-secondary" style="width: 100%;">Salvar Dados Pix</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Titulares Cadastrados -->
+            <div class="card">
+                <h2>Titulares Cadastrados, Códigos de Verificação e Links</h2>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Titular / Unidade</th>
+                                <th>Telefone / Endereço</th>
+                                <th>Status Senha</th>
+                                <th>Código Verificação</th>
+                                <th>Link Individual</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Feriados -->
+            <div class="card">
+                <h2>Feriados (Regra de Véspera)</h2>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.7rem;">
+                    Vésperas de feriado têm horário estendido: <strong>Quiosques 10h às 23h</strong> e <strong>Salão 10h às 24h</strong>.
+                </p>
+                <form onsubmit="registerHoliday(event)" style="display: flex; gap: 0.5rem; margin-bottom: 0.8rem; max-width: 420px;">
+                    <input type="date" id="holidayDate" required>
+                    <button type="submit" class="btn btn-secondary">Adicionar</button>
+                </form>
+                <div style="max-height: 170px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Feriado</th>
+                                <th>Véspera Afetada</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="holidaysTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Gestão de Reservas e Comprovantes em Imagem -->
+            <div class="card">
+                <h2>Solicitações de Reserva, Comprovantes (Imagem do PDF) e Confirmação Pix</h2>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Espaço</th>
+                                <th>Taxa</th>
+                                <th>Titular / Unidade</th>
+                                <th>Comprovante</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminReservationsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== PAINEL MORADOR ==================== -->
+        <div id="userView" class="hidden">
+            <div class="card">
+                <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem;">
+                    <div>
+                        <h2>Área Comum — Reservas</h2>
+                        <p style="font-size: 0.85rem; color: var(--text-muted);">
+                            Quiosques: <strong>R$ 30,00</strong> (10h–22h Dom–Qui; 10h–23h Sex, Sáb e Véspera • janela de 7 dias) •
+                            Salão: <strong>R$ 300,00</strong> (10h–23h Dom–Qui; 10h–24h Sex, Sáb e Véspera • até 3 meses).
+                        </p>
+                    </div>
+                    <div style="min-width: 220px;">
+                        <label for="reservationDatePicker">Selecione a Data:</label>
+                        <input type="date" id="reservationDatePicker" onchange="renderSpacesForDate()">
+                    </div>
+                </div>
+
+                <div id="dateInfoBanner" style="margin-top: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--primary);"></div>
+                <div id="spacesContainer" class="spaces-grid"></div>
+            </div>
+
+            <div class="card">
+                <h2>Minhas Reservas e Comprovantes</h2>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Espaço</th>
+                                <th>Horário</th>
+                                <th>Valor</th>
+                                <th>Comprovante</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="myReservationsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL PIX + UPLOAD PDF ==================== -->
+    <div id="pixModal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <h2 style="margin-bottom: 0.35rem;">Pagamento via Pix e Envio de Comprovante (PDF)</h2>
+            <p id="pixModalSubtitle" style="font-size: 0.86rem; color: var(--text-muted); margin-bottom: 0.9rem;"></p>
+
+            <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 0.8rem; margin-bottom: 0.9rem;">
+                <div style="font-size: 0.82rem; color: #166534;">Valor da Reserva:</div>
+                <div id="pixModalAmount" style="font-size: 1.45rem; font-weight: 800; color: #15803d;"></div>
+                <div style="font-size: 0.82rem; color: #166534; margin-top: 0.3rem;">
+                    Chave Pix: <strong id="pixModalKeyDisplay"></strong>
+                </div>
+            </div>
+
+            <label>Código Pix Copia e Cola</label>
+            <div id="pixCopyPasteCode" class="pix-box"></div>
+            <button type="button" class="btn btn-secondary" style="width: 100%; margin-bottom: 1rem;" onclick="copyPixCode()">
+                Copiar Código Pix
+            </button>
+
+            <div class="form-group">
+                <label for="pdfProofInput">Anexar Comprovante de Pagamento (somente PDF)</label>
+                <input type="file" id="pdfProofInput" accept="application/pdf" onchange="handlePdfSelected(event)">
+                <small id="pdfStatusText" style="color: var(--text-muted); display: block; margin-top: 0.3rem;">
+                    O PDF será convertido automaticamente em imagem para anexar à solicitação de reserva.
+                </small>
+            </div>
+
+            <div id="pdfPreviewContainer" class="hidden" style="margin-bottom: 1rem;">
+                <label>Prévia da Imagem Gerada do Comprovante:</label>
+                <img id="pdfPreviewImage" class="proof-preview-img" alt="Prévia do comprovante em imagem">
+            </div>
+
+            <div style="display: flex; gap: 0.6rem;">
+                <button type="button" class="btn btn-primary" onclick="submitPixProof()">Enviar Comprovante da Reserva</button>
+                <button type="button" class="btn" style="background: #e2e8f0; color: #334155;" onclick="closePixModal()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL VISUALIZAR IMAGEM DO COMPROVANTE (ADMIN / MORADOR) ==================== -->
+    <div id="viewProofModal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <h2 style="margin-bottom: 0.35rem;">Imagem do Comprovante Anexado</h2>
+            <p id="viewProofMeta" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem;"></p>
+            <img id="viewProofImg" class="proof-preview-img" alt="Comprovante da reserva">
+            <div style="margin-top: 1rem; text-align: right;">
+                <button type="button" class="btn btn-secondary" onclick="closeViewProofModal()">Fechar Visualização</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        if (window.pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc =
+                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+
+        const ADMIN_CREDENTIALS = { user: 'admin', pass: '1234' };
+        const FEES = { quiosque: 30.00, salao: 300.00 };
+
+        const SPACES = [
+            { id: 'quiosque-1', name: 'Quiosque 01', type: 'quiosque' },
+            { id: 'quiosque-2', name: 'Quiosque 02', type: 'quiosque' },
+            { id: 'quiosque-3', name: 'Quiosque 03', type: 'quiosque' },
+            { id: 'quiosque-4', name: 'Quiosque 04', type: 'quiosque' },
+            { id: 'quiosque-5', name: 'Quiosque 05', type: 'quiosque' },
+            { id: 'salao', name: 'Salão de Festas', type: 'salao' }
+        ];
+
+        let currentUser = null;
+        let activatingUserId = null;
+        let activePixReservationId = null;
+        let pendingConvertedProof = null; // { imageDataUrl, fileName }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initDefaultData();
+            checkUrlToken();
+        });
+
+        function initDefaultData() {
+            if (!localStorage.getItem('condo_users')) {
+                localStorage.setItem('condo_users', JSON.stringify([]));
+            }
+            if (!localStorage.getItem('condo_reservations')) {
+                localStorage.setItem('condo_reservations', JSON.stringify([]));
+            }
+            if (!localStorage.getItem('condo_holidays')) {
+                localStorage.setItem('condo_holidays', JSON.stringify(['2026-12-25', '2027-01-01']));
+            }
+            if (!localStorage.getItem('condo_pix_config')) {
+                localStorage.setItem('condo_pix_config', JSON.stringify({
+                    key: 'financeiro@acapulco.app.br',
+                    name: 'CONDOMINIO ACAPULCO',
+                    city: 'RIBEIRAO PRETO'
+                }));
+            }
+        }
+
+        function generateRandomToken() {
+            const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let out = '';
+            for (let i = 0; i < 24; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
+            return out;
+        }
+
+        function generateVerificationCode() {
+            return String(Math.floor(100000 + Math.random() * 900000));
+        }
+
+        function buildUserLink(token) {
+            const url = new URL(window.location.href);
+            url.search = '';
+            url.hash = '';
+            url.searchParams.set('acesso', token);
+            return url.toString();
+        }
+
+        function normalizeComparable(str) {
+            return String(str || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+        }
+
+        function normalizeDigits(str) {
+            return String(str || '').replace(/\D+/g, '');
+        }
+
+        function checkUrlToken() {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('acesso');
+            if (!token) return;
+
+            const users = JSON.parse(localStorage.getItem('condo_users') || '[]');
+            const found = users.find(u => u.token === token);
+
+            if (!found) {
+                showAlert('Link individual inválido ou revogado.');
+                return;
+            }
+
+            // Se ainda não cadastrou senha, direciona para validação de dados + código + senha
+            if (!found.passwordHash && !found.password) {
+                activatingUserId = found.id;
+                document.getElementById('loginView').classList.add('hidden');
+                document.getElementById('activateUserView').classList.remove('hidden');
+            } else {
+                currentUser = { role: 'user', data: found, viaToken: true };
+                enterApp();
+            }
+        }
+
+        // ==================== ATIVAÇÃO E CADASTRO DE SENHA ====================
+        function handleActivateUser(e) {
+            e.preventDefault();
+            const users = JSON.parse(localStorage.getItem('condo_users') || '[]');
+            const target = users.find(u => u.id === activatingUserId);
+
+            if (!target) {
+                showAlert('Cadastro do titular não encontrado.');
+                return;
+            }
+
+            const inputName = normalizeComparable(document.getElementById('actName').value);
+            const inputPhone = normalizeDigits(document.getElementById('actPhone').value);
+            const inputAddress = normalizeComparable(document.getElementById('actAddress').value);
+            const inputUnit = normalizeComparable(document.getElementById('actUnit').value);
+            const inputCode = document.getElementById('actCode').value.trim();
+            const newPass = document.getElementById('actNewPass').value;
+            const confirmPass = document.getElementById('actConfirmPass').value;
+
+            const matchesName = inputName === normalizeComparable(target.name);
+            const matchesPhone = inputPhone && inputPhone === normalizeDigits(target.phone);
+            const matchesAddress = inputAddress === normalizeComparable(target.address);
+            const matchesUnit = inputUnit === normalizeComparable(target.unit);
+            const matchesCode = inputCode === String(target.verificationCode);
+
+            if (!matchesName || !matchesPhone || !matchesAddress || !matchesUnit) {
+                showAlert('Os dados informados não conferem com o cadastro do titular feito pela administração.');
+                return;
+            }
+
+            if (!matchesCode) {
+                showAlert('Código de verificação inválido. Confira com a administração.');
+                return;
+            }
+
+            if (newPass.length < 4) {
+                showAlert('A senha deve ter pelo menos 4 caracteres.');
+                return;
+            }
+
+            if (newPass !== confirmPass) {
+                showAlert('A confirmação de senha não confere.');
+                return;
+            }
+
+            target.password = newPass;
+            target.activatedAt = new Date().toISOString();
+            localStorage.setItem('condo_users', JSON.stringify(users));
+
+            document.getElementById('activateUserView').classList.add('hidden');
+            currentUser = { role: 'user', data: target, viaToken: true };
+            showAlert('Senha individual cadastrada com sucesso! Bem-vindo à área comum.', 'success');
+            enterApp();
+        }
+
+        // ==================== DATAS E HORÁRIOS ====================
+        function getTodayStr() {
+            return formatDateYMD(new Date());
+        }
+
+        function formatDateYMD(dateObj) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function formatDateBR(ymdStr) {
+            const [y, m, d] = ymdStr.split('-');
+            return `${d}/${m}/${y}`;
+        }
+
+        function formatBRL(val) {
+            return Number(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        function parseLocalYMD(ymdStr) {
+            const [y, m, d] = ymdStr.split('-').map(Number);
+            return new Date(y, m - 1, d);
+        }
+
+        function addDays(ymdStr, days) {
+            const dt = parseLocalYMD(ymdStr);
+            dt.setDate(dt.getDate() + days);
+            return formatDateYMD(dt);
+        }
+
+        function addMonths(ymdStr, months) {
+            const dt = parseLocalYMD(ymdStr);
+            dt.setMonth(dt.getMonth() + months);
+            return formatDateYMD(dt);
+        }
+
+        function isExtendedScheduleDay(ymdStr) {
+            const dt = parseLocalYMD(ymdStr);
+            const dayOfWeek = dt.getDay();
+            if (dayOfWeek === 5 || dayOfWeek === 6) return true;
+
+            const nextDayStr = addDays(ymdStr, 1);
+            const holidays = JSON.parse(localStorage.getItem('condo_holidays') || '[]');
+            return holidays.includes(nextDayStr);
+        }
+
+        // Quiosques: 10h às 22h (Dom a Qui) | 10h às 23h (Sex, Sáb e Véspera de Feriado)
+        // Salão: 10h às 23h (Dom a Qui) | 10h às 24h (Sex, Sáb e Véspera de Feriado)
+        function getScheduleText(spaceType, ymdStr) {
+            const extended = isExtendedScheduleDay(ymdStr);
+            if (spaceType === 'quiosque') {
+                return extended ? '10h00 às 23h00' : '10h00 às 22h00';
+            }
+            return extended ? '10h00 às 24h00' : '10h00 às 23h00';
+        }
+
+        function getDayName(ymdStr) {
+            const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+            const dt = parseLocalYMD(ymdStr);
+            const nextDayStr = addDays(ymdStr, 1);
+            const holidays = JSON.parse(localStorage.getItem('condo_holidays') || '[]');
+            const isEve = holidays.includes(nextDayStr);
+            return days[dt.getDay()] + (isEve ? ' (Véspera de Feriado)' : '');
+        }
+
+        // ==================== PIX EMV (BR CODE + CRC16) ====================
+        function emvField(id, value) {
+            const str = String(value);
+            const len = String(str.length).padStart(2, '0');
+            return `${id}${len}${str}`;
+        }
+
+        function crc16Ccitt(payload) {
+            let crc = 0xFFFF;
+            for (let i = 0; i < payload.length; i++) {
+                crc ^= payload.charCodeAt(i) << 8;
+                for (let bit = 0; bit < 8; bit++) {
+                    if ((crc & 0x8000) !== 0) crc = (crc << 1) ^ 0x1021;
+                    else crc = crc << 1;
+                    crc &= 0xFFFF;
+                }
+            }
+            return crc.toString(16).toUpperCase().padStart(4, '0');
+        }
+
+        function sanitizeAsciiUpper(text, maxLen) {
+            return text
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^A-Za-z0-9 ]/g, ' ')
+                .trim()
+                .toUpperCase()
+                .slice(0, maxLen) || 'CONDOMINIO';
+        }
+
+        function generatePixPayload({ key, name, city, amount, txid }) {
+            const cleanKey = key.trim();
+            const merchantName = sanitizeAsciiUpper(name, 25);
+            const merchantCity = sanitizeAsciiUpper(city, 15);
+            const cleanTxid = sanitizeAsciiUpper(txid, 25).replace(/\s+/g, '') || 'RESERVA';
+            const amountStr = Number(amount).toFixed(2);
+
+            const gui = emvField('00', 'br.gov.bcb.pix');
+            const pixKeyField = emvField('01', cleanKey);
+            const merchantAccountInfo = emvField('26', gui + pixKeyField);
+            const additionalData = emvField('05', cleanTxid);
+
+            const partialPayload =
+                emvField('00', '01') +
+                merchantAccountInfo +
+                emvField('52', '0000') +
+                emvField('53', '986') +
+                emvField('54', amountStr) +
+                emvField('58', 'BR') +
+                emvField('59', merchantName) +
+                emvField('60', merchantCity) +
+                emvField('62', additionalData) +
+                '6304';
+
+            return partialPayload + crc16Ccitt(partialPayload);
+        }
+
+        // ==================== CONVERSÃO DE PDF PARA IMAGEM ====================
+        async function handlePdfSelected(event) {
+            const file = event.target.files && event.target.files[0];
+            pendingConvertedProof = null;
+            document.getElementById('pdfPreviewContainer').classList.add('hidden');
+
+            if (!file) {
+                document.getElementById('pdfStatusText').textContent =
+                    'O PDF será convertido automaticamente em imagem para anexar à solicitação de reserva.';
+                return;
+            }
+
+            if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                showAlert('Por favor, selecione um arquivo em formato PDF.');
+                event.target.value = '';
+                return;
+            }
+
+            if (!window.pdfjsLib) {
+                showAlert('Biblioteca de leitura de PDF não carregada. Verifique sua conexão.');
+                return;
+            }
+
+            document.getElementById('pdfStatusText').textContent = 'Convertendo PDF em imagem...';
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const page = await pdfDoc.getPage(1);
+
+                const viewport = page.getViewport({ scale: 1.35 });
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                await page.render({ canvasContext: ctx, viewport }).promise;
+
+                // JPEG com compressão equilibrada para caber bem no localStorage
+                const imageDataUrl = canvas.toDataURL('image/jpeg', 0.78);
+
+                pendingConvertedProof = {
+                    imageDataUrl,
+                    fileName: file.name,
+                    pages: pdfDoc.numPages,
+                    convertedAt: new Date().toISOString()
+                };
+
+                document.getElementById('pdfPreviewImage').src = imageDataUrl;
+                document.getElementById('pdfPreviewContainer').classList.remove('hidden');
+                document.getElementById('pdfStatusText').textContent =
+                    `PDF convertido em imagem (${file.name} • ${pdfDoc.numPages} pág.).`;
+            } catch (err) {
+                console.error(err);
+                showAlert('Não foi possível ler ou converter o PDF. Tente outro arquivo PDF.');
+                event.target.value = '';
+            }
+        }
+
+        function openViewProofModal(resId) {
+            const reservations = JSON.parse(localStorage.getItem('condo_reservations') || '[]');
+            const res = reservations.find(r => r.id === resId);
+            if (!res || !res.proofImage) {
+                showAlert('Nenhuma imagem de comprovante anexada a esta reserva.');
+                return;
+            }
+
+            const space = SPACES.find(s => s.id === res.spaceId);
+            document.getElementById('viewProofMeta').textContent =
+                `${space ? space.name : res.spaceId} • Data: ${formatDateBR(res.date)} • ${res.userName} (${res.userUnit}) • Arquivo: ${res.proofFileName || 'comprovante.pdf'}`;
+            document.getElementById('viewProofImg').src = res.proofImage;
+            document.getElementById('viewProofModal').classList.remove('hidden');
+        }
+
+        function closeViewProofModal() {
+            document.getElementById('viewProofModal').classList.add('hidden');
+        }
+
+        // ==================== UI & LOGIN ====================
+        function showAlert(msg, type = 'error') {
+            const alertBox = document.getElementById('globalAlert');
+            alertBox.textContent = msg;
+            alertBox.className = `alert alert-${type}`;
+            alertBox.style.display = 'block';
+            setTimeout(() => {
+                alertBox.style.display = 'none';
+            }, 5000);
+        }
+
+        function switchLoginTab(tab) {
+            const btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(b => b.classList.remove('active'));
+            if (tab === 'user') {
+                btns[0].classList.add('active');
+                document.getElementById('userLoginForm').classList.remove('hidden');
+                document.getElementById('adminLoginForm').classList.add('hidden');
+            } else {
+                btns[1].classList.add('active');
+                document.getElementById('adminLoginForm').classList.remove('hidden');
+                document.getElementById('userLoginForm').classList.add('hidden');
+            }
+        }
+
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('adminUserInput').value.trim();
+            const p = document.getElementById('adminPassInput').value.trim();
+            if (u === ADMIN_CREDENTIALS.user && p === ADMIN_CREDENTIALS.pass) {
+                currentUser = { role: 'admin', name: 'Administrador', viaToken: false };
+                enterApp();
+            } else {
+                showAlert('Credenciais administrativas inválidas.');
+            }
+        }
+
+        function handleUserLogin(e) {
+            e.preventDefault();
+            const loginVal = document.getElementById('userLoginInput').value.trim();
+            const pass = document.getElementById('userPassInput').value;
+
+            const users = JSON.parse(localStorage.getItem('condo_users') || '[]');
+            const loginDigits = normalizeDigits(loginVal);
+
+            const found = users.find(u => {
+                const sameUnit = normalizeComparable(u.unit) === normalizeComparable(loginVal);
+                const samePhone = loginDigits.length >= 8 && normalizeDigits(u.phone) === loginDigits;
+                return sameUnit || samePhone;
+            });
+
+            if (!found) {
+                showAlert('Titular não encontrado. Verifique com a administração.');
+                return;
+            }
+
+            if (!found.password) {
+                showAlert('Você ainda não cadastrou sua senha individual. Use seu link individual para ativar.');
+                return;
+            }
+
+            if (found.password !== pass) {
+                showAlert('Senha incorreta.');
+                return;
+            }
+
+            currentUser = { role: 'user', data: found, viaToken: false };
+            enterApp();
+        }
+
+        function enterApp() {
+            document.getElementById('loginView').classList.add('hidden');
+            document.getElementById('activateUserView').classList.add('hidden');
+            document.getElementById('headerControls').classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.toggle('hidden', Boolean(currentUser.viaToken));
+
+            if (currentUser.role === 'admin') {
+                document.getElementById('loggedUserDisplay').textContent = 'Perfil: Administrador';
+                document.getElementById('adminView').classList.remove('hidden');
+                loadPixForm();
+                renderAdminTables();
+            } else {
+                const suffix = currentUser.viaToken ? ' • Link Individual' : '';
+                document.getElementById('loggedUserDisplay').textContent = `${currentUser.data.name} (${currentUser.data.unit})${suffix}`;
+                document.getElementById('userView').classList.remove('hidden');
+
+                const datePicker = document.getElementById('reservationDatePicker');
+                const today = getTodayStr();
+                datePicker.min = today;
+                datePicker.max = addMonths(today, 3);
+                datePicker.value = today;
+
+                renderSpacesForDate();
+                renderUserReservations();
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('adminView').classList.add('hidden');
+            document.getElementById('userView').classList.add('hidden');
+            document.getElementById('headerControls').classList.add('hidden');
+            document.getElementById('loginView').classList.remove('hidden');
+            document.getElementById('userLoginForm').reset();
+            document.getElementById('adminLoginForm').reset();
+        }
+
+        // ==================== ADMIN ====================
+        function loadPixForm() {
+            const cfg = JSON.parse(localStorage.getItem('condo_pix_config') || '{}');
+            document.getElementById('pixKeyInput').value = cfg.key || '';
+            document.getElementById('pixNameInput').value = cfg.name || '';
+            document.getElementById('pixCityInput').value = cfg.city || '';
+        }
+
+        function savePixConfig(e) {
+            e.preventDefault();
+            const cfg = {
+                key: document.getElementById('pixKeyInput').value.trim(),
+                name: document.getElementById('pixNameInput').value.trim(),
+                city: document.getElementById('pixCityInput').value.trim()
+            };
+            localStorage.setItem('condo_pix_config', JSON.stringify(cfg));
+            showAlert('Dados Pix salvos com sucesso!', 'success');
+        }
+
+        function registerTitular(e) {
+            e.preventDefault();
+            const name = document.getElementById('regName').value.trim();
+            const phone = document.getElementById('regPhone').value.trim();
+            const address = document.getElementById('regAddress').value.trim();
+            const unit = document.getElementById('regUnit').value.trim();
+
+            const users = JSON.parse(localStorage.getItem('condo_users') || '[]');
+            if (users.some(u => normalizeComparable(u.unit) === normalizeComparable(unit))) {
+                showAlert('Já existe um titular cadastrado para esta Unidade.');
+                return;
+            }
+
+            const newUser = {
+                id: Date.now().toString(),
+                name,
+                phone,
+                address,
+                unit,
+                password: '', // Será cadastrada pelo próprio morador após validar dados + código
+                verificationCode: generateVerificationCode(),
+                token: generateRandomToken(),
+                createdAt: new Date().toISOString()
+            };
+
+            users.push(newUser);
+            localStorage.setItem('condo_users', JSON.stringify(users));
+            e.target.reset();
+            renderAdminTables();
+            showAlert(
+                `Titular cadastrado! Código de verificação: ${newUser.verificationCode}. Link copiado.`,
+                'success'
+            );
+            navigator.clipboard?.writeText(buildUserLink(newUser.token)).catch(() => {});
+        }
+
+        function regenerateVerificationAndLink(userId) {
+            const users = JSON.parse(localStorage.getItem('condo_users') || '[]');
+            const target = users.find(u => u.id === userId);
+            if (!target) return;
+
+            target.verificationCode = generateVerificationCode();
+            target.token = generateRandomToken();
+            target.password = ''; // Exige novo cadastro de senha ao reativar por código
+            localStorage.setItem('condo_users', JSON.stringify(users));
+
+            renderAdminTables();
+            showAlert(
+                `Novo código (${target.verificationCode}) e novo link gerados para ${target.name}.`,
+                'success'
+            );
+        }
+
+        function copyUserLink(userId) {
+            const users = JSON.parse(localStorage.getItem('condo_users') || '[]');
+            const target = users.find(u => u.id === userId);
+            if (!target) return;
+            const link = buildUserLink(target.token);
+            navigator.clipboard.writeText(link).then(() => {
+                showAlert('Link individual copiado!', 'success');
+            }).catch(() => {
+                showAlert(`Link: ${link}`, 'success');
+            });
+        }
+
+        function copyVerificationCode(code) {
+            navigator.clipboard.writeText(String(code)).then(() => {
+                showAlert(`Código de verificação ${code} copiado!`, 'success');
+            }).catch(() => {});
+        }
+
+        function deleteUser(id) {
+            if (!confirm('Remover titular, revogar link e cancelar reservas vinculadas?')) return;
+            const users = JSON.parse(localStorage.getItem('condo_users') || '[]').filter(u => u.id !== id);
+            const reservations = JSON.parse(localStorage.getItem('condo_reservations') || '[]').filter(r => r.userId !== id);
+            localStorage.setItem('condo_users', JSON.stringify(users));
+            localStorage.setItem('condo_reservations', JSON.stringify(reservations));
+            renderAdminTables();
+            showAlert('Titular removido.', 'success');
+        }
+
+        function registerHoliday(e) {
+            e.preventDefault();
+            const dateVal = document.getElementById('holidayDate').value;
+            if (!dateVal) return;
+            const holidays = JSON.parse(localStorage.getItem('condo_holidays') || '[]');
+            if (!holidays.includes(dateVal)) {
+                holidays.push(dateVal);
+                holidays.sort();
+                localStorage.setItem('condo_holidays', JSON.stringify(holidays));
+                showAlert('Feriado adicionado!', 'success');
+                renderAdminTables();
+            }
+            e.target.reset();
+        }
+
+        function deleteHoliday(dateVal) {
+            const holidays = JSON.parse(localStorage.getItem('condo_holidays') || '[]').filter(h => h !== dateVal);
+            localStorage.setItem('condo_holidays', JSON.stringify(holidays));
+            renderAdminTables();
+        }
+
+        function confirmPayment(resId) {
+            const reservations = JSON.parse(localStorage.getItem('condo_reservations') || '[]');
+            const target = reservations.find(r => r.id === resId);
+            if (!target) return;
+            target.status = 'confirmed';
+            target.confirmedAt = new Date().toISOString();
+            localStorage.setItem('condo_reservations', JSON.stringify(reservations));
+            showAlert('Pagamento confirmado! Reserva ativa.', 'success');
+            renderAdminTables();
+        }
+
+        function rejectOrCancelReservation(resId, isAdmin = false) {
+            const msg = isAdmin
+                ? 'Rejeitar/cancelar esta reserva e liberar o espaço?'
+                : 'Cancelar esta reserva?';
+            if (!confirm(msg)) return;
+
+            const reservations = JSON.parse(localStorage.getItem('condo_reservations') || '[]').filter(r => r.id !== resId);
+            localStorage.setItem('condo_reservations', JSON.stringify(reservations));
+            showAlert('Reserva cancelada e espaço liberado.', 'success');
+
+            if (isAdmin) {
+                renderAdminTables();
+            } else {
+                renderSpacesForDate();
+                renderUserReservations();
+            }
+        }
+
+        function renderStatusBadge(status) {
+            if (status === 'confirmed') {
+                return '<span class="badge badge-confirmed">Confirmada</span>';
+            }
+            return '<span class="badge badge-pending">Aguardando Pix</span>';
+        }
+
+        function renderAdminTables() {
+            const users = JSON.parse(localStorage.getItem('condo_users') || '[]');
+            document.getElementById('usersTableBody').innerHTML = users.length
+                ? users.map(u => {
+                    const link = buildUserLink(u.token || '');
+                    const senhaBadge = u.password
+                        ? '<span class="badge badge-active-user">Senha Cadastrada</span>'
+                        : '<span class="badge badge-pending-user">Aguardando Ativação</span>';
+                    return `
+                        <tr>
+                            <td><strong>${u.name}</strong><br><span style="color:var(--text-muted)">Unidade: ${u.unit}</span></td>
+                            <td>Tel: ${u.phone}<br><span style="color:var(--text-muted)">${u.address}</span></td>
+                            <td>${senhaBadge}</td>
+                            <td>
+                                <span class="code-pill">${u.verificationCode || '-'}</span><br>
+                                <button class="btn btn-link" style="margin-top:0.3rem;" onclick="copyVerificationCode('${u.verificationCode || ''}')">Copiar Código</button>
+                            </td>
+                            <td>
+                                <span class="link-preview" title="${link}">${link}</span><br>
+                                <button class="btn btn-link" style="margin-top:0.3rem;" onclick="copyUserLink('${u.id}')">Copiar Link</button>
+                            </td>
+                            <td style="display:flex; flex-direction:column; gap:0.35rem;">
+                                <button class="btn btn-secondary" style="padding:0.38rem 0.65rem; font-size:0.78rem;" onclick="regenerateVerificationAndLink('${u.id}')">Novo Código/Link</button>
+                                <button class="btn btn-danger" onclick="deleteUser('${u.id}')">Excluir</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('')
+                : '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Nenhum titular cadastrado.</td></tr>';
+
+            const holidays = JSON.parse(localStorage.getItem('condo_holidays') || '[]');
+            document.getElementById('holidaysTableBody').innerHTML = holidays.map(h => `
+                <tr>
+                    <td>${formatDateBR(h)}</td>
+                    <td>${formatDateBR(addDays(h, -1))}</td>
+                    <td><button class="btn btn-danger" onclick="deleteHoliday('${h}')">X</button></td>
+                </tr>
+            `).join('');
+
+            const reservations = JSON.parse(localStorage.getItem('condo_reservations') || '[]')
+                .sort((a, b) => a.date.localeCompare(b.date));
+
+            document.getElementById('adminReservationsTableBody').innerHTML = reservations.length
+                ? reservations.map(r => {
+                    const space = SPACES.find(s => s.id === r.spaceId);
+                    const proofCell = r.proofImage
+                        ? `<button class="btn btn-link" onclick="openViewProofModal('${r.id}')">Ver Imagem do PDF</button>`
+                        : '<span style="color:var(--text-muted)">Sem PDF enviado</span>';
+
+                    return `
+                        <tr>
+                            <td><strong>${formatDateBR(r.date)}</strong></td>
+                            <td>${space ? space.name : r.spaceId}</td>
+                            <td><strong>${formatBRL(r.amount)}</strong></td>
+                            <td>${r.userName}<br><span style="color:var(--text-muted)">${r.userUnit} • ${r.userPhone || ''}</span></td>
+                            <td>${proofCell}</td>
+                            <td>${renderStatusBadge(r.status)}</td>
+                            <td style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+                                ${r.status !== 'confirmed' ? `<button class="btn btn-success" onclick="confirmPayment('${r.id}')">Confirmar Pix</button>` : ''}
+                                <button class="btn btn-danger" onclick="rejectOrCancelReservation('${r.id}', true)">Cancelar</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('')
+                : '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Nenhuma reserva registrada.</td></tr>';
+        }
+
+        // ==================== RESERVAS & PIX (MORADOR) ====================
+        function renderSpacesForDate() {
+            const selectedDate = document.getElementById('reservationDatePicker').value;
+            if (!selectedDate) return;
+
+            const today = getTodayStr();
+            const maxQuiosqueDate = addDays(today, 6);
+            const maxSalaoDate = addMonths(today, 3);
+
+            document.getElementById('dateInfoBanner').textContent =
+                `Data selecionada: ${formatDateBR(selectedDate)} — ${getDayName(selectedDate)}`;
+
+            const reservations = JSON.parse(localStorage.getItem('condo_reservations') || '[]');
+            const dayReservations = reservations.filter(r => r.date === selectedDate);
+
+            const userHasQuiosqueToday = dayReservations.some(
+                r => r.userId === currentUser.data.id && r.spaceId.startsWith('quiosque')
+            );
+
+            const container = document.getElementById('spacesContainer');
+            container.innerHTML = SPACES.map(space => {
+                const fee = FEES[space.type];
+                const existingRes = dayReservations.find(r => r.spaceId === space.id);
+                const hoursText = getScheduleText(space.type, selectedDate);
+
+                const isDateOutOfWindow = space.type === 'quiosque'
+                    ? (selectedDate < today || selectedDate > maxQuiosqueDate)
+                    : (selectedDate < today || selectedDate > maxSalaoDate);
+
+                let statusBadge = '';
+                let actionHtml = '';
+
+                if (existingRes) {
+                    const isMine = existingRes.userId === currentUser.data.id;
+                    if (existingRes.status === 'confirmed') {
+                        statusBadge = `<span class="badge badge-occupied">${isMine ? 'Confirmada por você' : 'Ocupado'}</span>`;
+                    } else {
+                        statusBadge = `<span class="badge badge-pending">${isMine ? 'Aguardando seu Pix' : 'Em pagamento Pix'}</span>`;
+                    }
+
+                    if (isMine && existingRes.status !== 'confirmed') {
+                        actionHtml = `<button class="btn btn-secondary" style="width:100%;" onclick="openPixModal('${existingRes.id}')">Pix e Enviar PDF</button>`;
+                    } else {
+                        actionHtml = `<button class="btn" style="background:#cbd5e1; color:#475569; width:100%;" disabled>Indisponível</button>`;
+                    }
+                } else if (isDateOutOfWindow) {
+                    statusBadge = `<span class="badge badge-blocked">Fora do Prazo</span>`;
+                    const tip = space.type === 'quiosque'
+                        ? `Liberado até ${formatDateBR(maxQuiosqueDate)} (7 dias)`
+                        : `Liberado até ${formatDateBR(maxSalaoDate)} (3 meses)`;
+                    actionHtml = `<button class="btn" style="background:#fef3c7; color:#92400e; width:100%; font-size:0.8rem;" disabled>${tip}</button>`;
+                } else if (space.type === 'quiosque' && userHasQuiosqueToday) {
+                    statusBadge = `<span class="badge badge-blocked">Limite Atingido</span>`;
+                    actionHtml = `<button class="btn" style="background:#e2e8f0; color:#64748b; width:100%; font-size:0.8rem;" disabled>1 quiosque/dia por usuário</button>`;
+                } else {
+                    statusBadge = `<span class="badge badge-available">Disponível</span>`;
+                    actionHtml = `<button class="btn btn-primary" onclick="createPendingReservation('${space.id}', '${selectedDate}')">Reservar (${formatBRL(fee)})</button>`;
+                }
+
+                return `
+                    <div class="space-card ${space.type}">
+                        <div>
+                            ${statusBadge}
+                            <div class="space-title">${space.name}</div>
+                            <div class="space-fee">Taxa: ${formatBRL(fee)}</div>
+                            <div class="space-hours">Horário: <strong>${hoursText}</strong></div>
+                        </div>
+                        <div>${actionHtml}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function createPendingReservation(spaceId, dateStr) {
+            const today = getTodayStr();
+            const maxQuiosqueDate = addDays(today, 6);
+            const maxSalaoDate = addMonths(today, 3);
+            const isQuiosque = spaceId.startsWith('quiosque');
+
+            if (isQuiosque && (dateStr < today || dateStr > maxQuiosqueDate)) {
+                showAlert('Quiosques só podem ser reservados dentro do período de 7 dias.');
+                return;
+            }
+            if (!isQuiosque && (dateStr < today || dateStr > maxSalaoDate)) {
+                showAlert('Salão de festas só pode ser reservado com até 3 meses de antecedência.');
+                return;
+            }
+
+            const reservations = JSON.parse(localStorage.getItem('condo_reservations') || '[]');
+            if (reservations.some(r => r.date === dateStr && r.spaceId === spaceId)) {
+                showAlert('Este espaço já está reservado ou em processo de pagamento nesta data.');
+                renderSpacesForDate();
+                return;
+            }
+            if (isQuiosque && reservations.some(r => r.date === dateStr && r.userId === currentUser.data.id && r.spaceId.startsWith('quiosque'))) {
+                showAlert('Você já possui um quiosque reservado nesta data.');
+                return;
+            }
+
+            const newRes = {
+                id: 'RES' + Date.now(),
+                spaceId,
+                date: dateStr,
+                amount: isQuiosque ? FEES.quiosque : FEES.salao,
+                status: 'pending_payment',
+                proofImage: '',
+                proofFileName: '',
+                userId: currentUser.data.id,
+                userName: currentUser.data.name,
+                userUnit: currentUser.data.unit,
+                userPhone: currentUser.data.phone
+            };
+
+            reservations.push(newRes);
+            localStorage.setItem('condo_reservations', JSON.stringify(reservations));
+
+            renderSpacesForDate();
+            renderUserReservations();
+            openPixModal(newRes.id);
+        }
+
+        function openPixModal(resId) {
+            const reservations = JSON.parse(localStorage.getItem('condo_reservations') || '[]');
+            const res = reservations.find(r => r.id === resId);
+            if (!res) return;
+
+            const space = SPACES.find(s => s.id === res.spaceId);
+            const pixCfg = JSON.parse(localStorage.getItem('condo_pix_config') || '{}');
+
+            activePixReservationId = resId;
+            pendingConvertedProof = null;
+            document.getElementById('pdfProofInput').value = '';
+            document.getElementById('pdfStatusText').textContent =
+                'O PDF será convertido automaticamente em imagem para anexar à solicitação de reserva.';
+
+            document.getElementById('pixModalSubtitle').textContent =
+                `${space ? space.name : res.spaceId} • Data: ${formatDateBR(res.date)} • Unidade: ${res.userUnit}`;
+            document.getElementById('pixModalAmount').textContent = formatBRL(res.amount);
+            document.getElementById('pixModalKeyDisplay').textContent = pixCfg.key || 'Não configurada';
+
+            const payload = generatePixPayload({
+                key: pixCfg.key || 'financeiro@acapulco.app.br',
+                name: pixCfg.name || 'CONDOMINIO ACAPULCO',
+                city: pixCfg.city || 'RIBEIRAO PRETO',
+                amount: res.amount,
+                txid: res.id
+            });
+
+            document.getElementById('pixCopyPasteCode').textContent = payload;
+
+            if (res.proofImage) {
+                document.getElementById('pdfPreviewImage').src = res.proofImage;
+                document.getElementById('pdfPreviewContainer').classList.remove('hidden');
+                document.getElementById('pdfStatusText').textContent =
+                    `Comprovante já anexado (${res.proofFileName || 'comprovante.pdf'}). Você pode enviar um novo PDF se desejar.`;
+            } else {
+                document.getElementById('pdfPreviewContainer').classList.add('hidden');
+            }
+
+            document.getElementById('pixModal').classList.remove('hidden');
+        }
+
+        function closePixModal() {
+            activePixReservationId = null;
+            pendingConvertedProof = null;
+            document.getElementById('pixModal').classList.add('hidden');
+        }
+
+        function copyPixCode() {
+            const code = document.getElementById('pixCopyPasteCode').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                showAlert('Código Pix Copia e Cola copiado!', 'success');
+            }).catch(() => {
+                showAlert('Selecione e copie o código Pix manualmente.', 'success');
+            });
+        }
+
+        function submitPixProof() {
+            if (!activePixReservationId) return;
+
+            const reservations = JSON.parse(localStorage.getItem('condo_reservations') || '[]');
+            const target = reservations.find(r => r.id === activePixReservationId);
+            if (!target) return;
+
+            if (pendingConvertedProof) {
+                target.proofImage = pendingConvertedProof.imageDataUrl;
+                target.proofFileName = pendingConvertedProof.fileName;
+            } else if (!target.proofImage) {
+                showAlert('Por favor, selecione o PDF do comprovante antes de enviar.');
+                return;
+            }
+
+            try {
+                localStorage.setItem('condo_reservations', JSON.stringify(reservations));
+            } catch (err) {
+                showAlert('A imagem gerada do PDF excedeu o limite de espaço do navegador. Tente um PDF menor.');
+                return;
+            }
+
+            closePixModal();
+            renderUserReservations();
+            showAlert('Comprovante convertido em imagem e anexado à sua solicitação! Aguarde a confirmação.', 'success');
+        }
+
+        function renderUserReservations() {
+            const reservations = JSON.parse(localStorage.getItem('condo_reservations') || '[]')
+                .filter(r => r.userId === currentUser.data.id)
+                .sort((a, b) => a.date.localeCompare(b.date));
+
+            document.getElementById('myReservationsTableBody').innerHTML = reservations.length
+                ? reservations.map(r => {
+                    const space = SPACES.find(s => s.id === r.spaceId);
+                    const proofAction = r.proofImage
+                        ? `<button class="btn btn-link" onclick="openViewProofModal('${r.id}')">Ver Imagem</button>`
+                        : '<span style="color:var(--text-muted)">Pendente</span>';
+
+                    return `
+                        <tr>
+                            <td><strong>${formatDateBR(r.date)}</strong> (${getDayName(r.date)})</td>
+                            <td>${space ? space.name : r.spaceId}</td>
+                            <td>${getScheduleText(space.type, r.date)}</td>
+                            <td><strong>${formatBRL(r.amount)}</strong></td>
+                            <td>${proofAction}</td>
+                            <td>${renderStatusBadge(r.status)}</td>
+                            <td style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+                                ${r.status !== 'confirmed' ? `<button class="btn btn-pix" onclick="openPixModal('${r.id}')">${r.proofImage ? 'Trocar PDF' : 'Pagar / Enviar PDF'}</button>` : ''}
+                                <button class="btn btn-danger" onclick="rejectOrCancelReservation('${r.id}', false)">Cancelar</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('')
+                : '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Você ainda não possui reservas.</td></tr>';
+        }
+    </script>
+</body>
+</html>
